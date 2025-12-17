@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="WaterTankGraphics">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/../Week 4/WaterTankGraphics.jar!/" />
+      <root url="jar://$PROJECT_DIR$/../Week 4/WaterTank.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
