@@ -3,6 +3,8 @@ ADT Project for DSA Course
 
 Water Tap and Filling Glass Cup ADT simulation
 
+<img width="479" height="461" alt="610618475_1662007714812440_2644053430818230084_n" src="https://github.com/user-attachments/assets/0bd8cd90-e892-4734-b996-47771446aa47" />
+
 ## 👥 Contributors
 
 This project was a collaborative effort by **Team BCB**:
