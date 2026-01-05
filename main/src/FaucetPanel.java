@@ -29,7 +29,7 @@ public class FaucetPanel extends JPanel {
 
     private boolean overflowed = false;
 
-    // --- Sink & Drainage ---
+    // sink n drain
     private double sinkLevel = 0; // Changed to double for smoother draining
     private final int SINK_MAX_LEVEL = 200;
     private final int SINK_FILL_RATE = 5;
@@ -38,7 +38,7 @@ public class FaucetPanel extends JPanel {
 
     private boolean glassVanished = false;
 
-    // --- Dynamic Sizing Constants ---
+    // sizing constant
     private final int CUP_WIDTH = 90;
     private final int CUP_HEIGHT = 140;
     private final int CUP_TOP = 150;
@@ -195,11 +195,11 @@ public class FaucetPanel extends JPanel {
         int centerX = getWidth() / 2;
         int cupLeft = centerX - (CUP_WIDTH / 2);
 
-        // --- 1. Draw Drain Pipe (Behind Sink) ---
+        // draw drain pipe
         g2.setPaint(new GradientPaint(centerX - DRAIN_WIDTH/2, 0, Color.DARK_GRAY, centerX + DRAIN_WIDTH/2, 0, Color.BLACK));
         g2.fillRect(centerX - DRAIN_WIDTH/2, SINK_TOP + SINK_HEIGHT - 10, DRAIN_WIDTH, 50);
 
-        // --- 2. Draw Sink Basin ---
+        // sink
         int sinkWidth = CUP_WIDTH + 160;
         int sinkLeft = centerX - (sinkWidth / 2);
         g2.setColor(new Color(40, 40, 45));
@@ -209,7 +209,7 @@ public class FaucetPanel extends JPanel {
         g2.setColor(new Color(15, 15, 15));
         g2.draw(new RoundRectangle2D.Double(sinkLeft, SINK_TOP, sinkWidth, SINK_HEIGHT, 20, 20));
 
-        // --- 3. Draw Sink Water ---
+        // sink water
         if (sinkLevel > 0) {
             double pct = sinkLevel / SINK_MAX_LEVEL;
             int waterHeight = (int) ((SINK_HEIGHT - 10) * pct);
@@ -220,7 +220,7 @@ public class FaucetPanel extends JPanel {
             g2.fillRect(centerX - DRAIN_WIDTH/4, SINK_TOP + SINK_HEIGHT - 5, DRAIN_WIDTH/2, 10);
         }
 
-        // --- 4. Draw Glass Liquid ---
+        // glass liquid
         if (!glass.isEmpty() && !glassVanished) {
             int unitHeight = CUP_HEIGHT / glass.getCapacity();
             int lHeight = glass.getLevel() * unitHeight;
@@ -230,19 +230,19 @@ public class FaucetPanel extends JPanel {
             g2.fill(new RoundRectangle2D.Double(cupLeft + 3, CUP_TOP + CUP_HEIGHT - lHeight, CUP_WIDTH - 6, lHeight - 3, 5, 5));
         }
 
-        // --- 5. Draw Glass Outline ---
+        // glass outline
         if (!glassVanished) {
             g2.setStroke(new BasicStroke(2.0f));
             g2.setColor(new Color(255, 255, 255, 70));
             g2.draw(new RoundRectangle2D.Double(cupLeft, CUP_TOP, CUP_WIDTH, CUP_HEIGHT, 10, 10));
         }
 
-        // --- 6. Draw Faucet ---
+        // faucet
         g2.setPaint(new GradientPaint(centerX - 30, 0, Color.LIGHT_GRAY, centerX + 30, 0, Color.DARK_GRAY));
         g2.fill(new RoundRectangle2D.Double(centerX - 30, 15, 60, 25, 10, 10)); // Body
         g2.fill(new Rectangle2D.Double(centerX - 10, 40, 20, 15)); // Spout
 
-        // --- 7. Particles & Drops ---
+        // particles
         for (Drop d : drops) {
             g2.setColor(new Color(135, 206, 250));
             g2.fillOval(d.x, d.y, 8, 12);
@@ -252,7 +252,7 @@ public class FaucetPanel extends JPanel {
             g2.fillOval(p.x, p.y, 4, 4);
         }
 
-        // --- 8. Stirrer ---
+        // stirrer
         if (stirring) {
             AffineTransform old = g2.getTransform();
             g2.rotate(Math.toRadians(stirAngle), centerX, CUP_TOP + CUP_HEIGHT / 2);
