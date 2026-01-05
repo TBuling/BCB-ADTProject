@@ -15,7 +15,7 @@ public class Glass {
     }
 
     public boolean addUnit(Liquid liquid) {
-        if (level < capacity) {
+        if (!isFull()) {
             level++;
             currentLiquid = liquid;
             return true;
@@ -24,7 +24,7 @@ public class Glass {
     }
 
     public boolean drinkAll() {
-        if (level > 0) {
+        if (!isEmpty()) {
             level = 0;
             currentLiquid = null;
             return true;
@@ -33,7 +33,7 @@ public class Glass {
     }
 
     public boolean removeUnit() {
-        if (level > 0) {
+        if (!isEmpty()) {
             level--;
             if (level == 0) currentLiquid = null;
             return true;
@@ -50,11 +50,11 @@ public class Glass {
     }
 
     public boolean isFull() {
-        return level == capacity;
+        return level >= capacity;
     }
 
     public boolean isEmpty() {
-        return level == 0;
+        return level <= 0;
     }
 
     public Liquid getCurrentLiquid() {

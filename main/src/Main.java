@@ -6,13 +6,17 @@ public class Main {
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
 
-            Glass glass = new Glass(5); // 5 units max
+            Glass glass = new Glass(5); // 5 units
             FaucetPanel faucetPanel = new FaucetPanel(glass);
 
             JFrame frame = new JFrame("Faucet and Glass");
-            frame.setSize(700, 400);
             frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+            frame.setSize(700, 400);
             frame.setLocationRelativeTo(null);
+
+            // 60% FaucetPanel, 40% Controls
+            JSplitPane splitPane = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
+            splitPane.setLeftComponent(faucetPanel);
 
             JPanel controls = new JPanel();
             controls.setLayout(new BoxLayout(controls, BoxLayout.Y_AXIS));
@@ -45,8 +49,10 @@ public class Main {
             removeBtn.addActionListener(e -> faucetPanel.removeUnit());
             drinkBtn.addActionListener(e -> faucetPanel.drinkGlass());
 
-            frame.add(faucetPanel, BorderLayout.CENTER);
-            frame.add(controls, BorderLayout.EAST);
+            splitPane.setRightComponent(controls);
+            splitPane.setDividerLocation(0.6); // 60/40 ratio
+            splitPane.setResizeWeight(0.6);
+            frame.add(splitPane);
 
             frame.setVisible(true);
         });
