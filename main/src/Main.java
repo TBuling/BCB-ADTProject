@@ -107,7 +107,7 @@ public class Main {
             // ---------------- Label Updater ----------------
             Timer labelTimer = new Timer(100, e -> {
                 levelLabel.setText(glass.getLevel() + " / " + glass.getCapacity());
-                typeLabel.setText("Liquid: " + (glass.getCurrentLiquid() == null ? "None" : glass.getCurrentLiquid().name()));
+                typeLabel.setText("" + (glass.getCurrentLiquid() == null ? "None" : glass.getCurrentLiquid().name()));
                 fullLabel.setText(glass.isFull() ? "Glass is full" : "Glass is not full");
                 emptyLabel.setText(glass.isEmpty() ? "Glass is empty" : "Glass is not empty");
                 stirLabel.setText(faucetPanel.isStirring() ? "Yes" : "No");
