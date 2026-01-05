@@ -1,6 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
-import java.awt.geom.AffineTransform;
+import java.awt.geom.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -25,47 +25,55 @@ public class FaucetPanel extends JPanel {
 
     private boolean faucetOpen = false;
     private int dropSpawnCounter = 0;
-    private final int DROP_SPAWN_INTERVAL = 10;
+    private final int DROP_SPAWN_INTERVAL = 6;
 
     private boolean overflowed = false;
-    private boolean overflowWarned = false;
-    private Glass.Liquid sinkLiquidType = Glass.Liquid.WATER; // sink only shows overflowed water
 
-    private boolean glassVanished = false; // vanish on drinkGlass only
+    // sink n drain.
+    private double sinkLevel = 0; // Changed to double for smoother draining
+    private final int SINK_MAX_LEVEL = 200;
+    private final int SINK_FILL_RATE = 5;
+    private final double DRAIN_RATE = 0.2; // Slowly drains every tick
+    private Glass.Liquid sinkLiquidType = Glass.Liquid.WATER;
 
-    private final int CUP_LEFT = 150, CUP_TOP = 180, CUP_WIDTH = 80, CUP_HEIGHT = 120;
-    private final int SINK_TOP = 310, SINK_HEIGHT = 50;
-    private final int NOZZLE_X = CUP_LEFT + CUP_WIDTH / 2 - 4, NOZZLE_Y = CUP_TOP - 50;
+    private boolean glassVanished = false;
+
+    // sizing constant
+    private final int CUP_WIDTH = 90;
+    private final int CUP_HEIGHT = 140;
+    private final int CUP_TOP = 150;
+    private final int SINK_TOP = 300;
+    private final int SINK_HEIGHT = 60;
+    private final int DRAIN_WIDTH = 25; // Size of the drain pipe
+    private final int NOZZLE_Y = 60;
 
     private final Timer timer;
 
     public FaucetPanel(Glass glass) {
         this.glass = glass;
-        setPreferredSize(new Dimension(400, 350));
-        setBackground(Color.LIGHT_GRAY);
+        setBackground(new Color(25, 25, 30));
 
-        timer = new Timer(30, e -> {
+        timer = new Timer(25, e -> {
             updateDrops();
             updateParticlesAndStir();
+            updateDrainage(); // New logic
             repaint();
         });
         timer.start();
     }
 
-    // --- Drop & Faucet logic ---
     private void updateDrops() {
+        int centerX = getWidth() / 2;
         int unitHeight = CUP_HEIGHT / glass.getCapacity();
         int liquidHeight = glass.getLevel() * unitHeight;
-        int surfaceY = CUP_TOP + CUP_HEIGHT - liquidHeight - 1;
+        int surfaceY = CUP_TOP + CUP_HEIGHT - liquidHeight;
 
         if (faucetOpen) {
             dropSpawnCounter++;
             if (dropSpawnCounter >= DROP_SPAWN_INTERVAL) {
-                drops.add(new Drop(NOZZLE_X, NOZZLE_Y, 2));
+                drops.add(new Drop(centerX - 4, NOZZLE_Y + 30, 8));
                 dropSpawnCounter = 0;
             }
-        } else {
-            dropSpawnCounter = DROP_SPAWN_INTERVAL;
         }
 
         Iterator<Drop> it = drops.iterator();
@@ -73,54 +81,46 @@ public class FaucetPanel extends JPanel {
             Drop drop = it.next();
             drop.y += drop.speed;
 
-            if (drop.y >= surfaceY) {
+            if (drop.y >= surfaceY || (glass.isEmpty() && drop.y >= CUP_TOP + CUP_HEIGHT)) {
                 boolean added = glass.addUnit(Glass.Liquid.WATER);
 
-                // track water for resetting milk/milo
                 if (milkMiloAdded) {
                     waterCounter++;
                     if (waterCounter >= RESET_WATER_THRESHOLD) {
                         milkMiloAdded = false;
                         baseLiquid = Glass.Liquid.WATER;
                         waterCounter = 0;
-                        packet = null; // allow powder again
+                        packet = null;
                     }
-                } else {
-                    baseLiquid = Glass.Liquid.WATER;
                 }
+                visualLiquidType = milkMiloAdded ? visualLiquidType : Glass.Liquid.WATER;
 
-                visualLiquidType = milkMiloAdded ? visualLiquidType : baseLiquid;
-
-                // Overflow logic
                 if (!added) {
                     overflowed = true;
-                    sinkLiquidType = Glass.Liquid.WATER; // only water contributes to sink
-                    if (!overflowWarned) {
-                        overflowWarned = true;
-                        JOptionPane.showMessageDialog(this,
-                                "Warning: Glass is overflowing!",
-                                "Overflow",
-                                JOptionPane.WARNING_MESSAGE);
-                    }
+                    sinkLevel = Math.min(sinkLevel + SINK_FILL_RATE, SINK_MAX_LEVEL);
                 } else {
                     overflowed = glass.isFull();
-                    if (!overflowed) overflowWarned = false;
                 }
                 it.remove();
             }
         }
     }
 
-    // --- Powder / Particle / Stir logic ---
+    private void updateDrainage() {
+        if (sinkLevel > 0) {
+            sinkLevel -= DRAIN_RATE;
+            if (sinkLevel < 0) sinkLevel = 0;
+        }
+    }
+
     private void updateParticlesAndStir() {
-        int unitHeight = CUP_HEIGHT / glass.getCapacity();
-        int liquidSurface = CUP_TOP + CUP_HEIGHT - glass.getLevel() * unitHeight;
+        int centerX = getWidth() / 2;
+        int liquidSurface = CUP_TOP + CUP_HEIGHT - (glass.getLevel() * (CUP_HEIGHT / glass.getCapacity()));
+        if (glass.isEmpty()) liquidSurface = CUP_TOP + CUP_HEIGHT;
 
         if (packet != null && packet.generatedParticles < packet.totalParticles) {
-            for (int i = 0; i < 2; i++) {
-                int px = packet.x + 10 + (int)(Math.random() * 10 - 5);
-                int py = packet.y + 20;
-                particles.add(new Particle(px, py, packet.type, 1 + Math.random()));
+            for (int i = 0; i < 3; i++) {
+                particles.add(new Particle(centerX + (int)(Math.random() * 20 - 10), NOZZLE_Y + 35, packet.type, 3));
                 packet.generatedParticles++;
             }
         }
@@ -132,36 +132,19 @@ public class FaucetPanel extends JPanel {
             if (p.y >= liquidSurface) pit.remove();
         }
 
-        // Stirring logic for powder — does NOT increase water level
-        if (packet != null && packet.generatedParticles >= packet.totalParticles && particles.isEmpty() && !stirring) {
+        if (!glass.isEmpty() && packet != null && packet.generatedParticles >= packet.totalParticles && particles.isEmpty() && !stirring) {
             stirring = true;
             stirTicks = 0;
-
-            baseLiquid = packet.type;
             visualLiquidType = packet.type;
             milkMiloAdded = true;
-            waterCounter = 0;
-
-            packet = null; // clear packet
+            packet = null;
         }
 
         if (stirring) {
             stirTicks++;
-            stirAngle = (int)(Math.sin((double)stirTicks / STIR_DURATION * Math.PI * 2) * STIR_SWING);
+            stirAngle = (int)(Math.sin((double)stirTicks / STIR_DURATION * Math.PI * 6) * STIR_SWING);
             if (stirTicks >= STIR_DURATION) stirring = false;
         }
-
-        if (!stirring) visualLiquidType = baseLiquid;
-    }
-
-    // --- Public actions ---
-    public void openFaucet() {
-        faucetOpen = true;
-        dropSpawnCounter = DROP_SPAWN_INTERVAL;
-    }
-
-    public void closeFaucet() {
-        faucetOpen = false;
     }
 
     public boolean toggleFaucet() {
@@ -170,31 +153,16 @@ public class FaucetPanel extends JPanel {
         return faucetOpen;
     }
 
-    public boolean isFaucetOpen() {
-        return faucetOpen;
-    }
-
     public boolean addPowder(Glass.Liquid type) {
-        if (faucetOpen) {
-            JOptionPane.showMessageDialog(this, "Close the faucet before adding powder!", "Cannot Add Powder", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-        if (glass.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Glass is empty! Fill it before adding powder.", "Cannot Add Powder", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-        if (milkMiloAdded) {
-            JOptionPane.showMessageDialog(this, "Powder already added!", "Cannot Add Powder", JOptionPane.WARNING_MESSAGE);
-            return false;
-        }
-
-        packet = new Packet(NOZZLE_X - 10, NOZZLE_Y - 20, type, 50);
+        if (faucetOpen || milkMiloAdded) return false;
+        packet = new Packet(getWidth() / 2, NOZZLE_Y, type, 60);
         return true;
     }
 
     public void removeUnit() {
         if (!glass.isEmpty()) {
             glass.removeUnit();
+            overflowed = false;
         }
     }
 
@@ -206,114 +174,95 @@ public class FaucetPanel extends JPanel {
         stirring = false;
         milkMiloAdded = false;
         visualLiquidType = Glass.Liquid.WATER;
-        baseLiquid = Glass.Liquid.WATER;
         overflowed = false;
-        overflowWarned = false;
-        waterCounter = 0;
-        sinkLiquidType = Glass.Liquid.WATER;
+        sinkLevel = 0;
 
-        // vanish outline temporarily
         glassVanished = true;
-        Timer restoreTimer = new Timer(200, e -> glassVanished = false);
-        restoreTimer.setRepeats(false);
-        restoreTimer.start();
+        Timer t = new Timer(250, e -> glassVanished = false);
+        t.setRepeats(false);
+        t.start();
     }
 
-    public boolean isStirring() {
-        return stirring;
-    }
+    public boolean isStirring() { return stirring; }
+    public boolean isOverflowing() { return overflowed; }
 
-    public boolean isOverflowing() {
-        return overflowed || glass.isFull();
-    }
-
-    // --- Paint ---
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        int unitHeight = CUP_HEIGHT / glass.getCapacity();
-        int liquidHeight = glass.getLevel() * unitHeight;
+        int centerX = getWidth() / 2;
+        int cupLeft = centerX - (CUP_WIDTH / 2);
 
-        // Faucet
-        g2.setColor(Color.DARK_GRAY);
-        g2.fillRect(NOZZLE_X - 10, NOZZLE_Y, 40, 20);
-        g2.setColor(Color.GRAY);
-        g2.fillRect(NOZZLE_X - 5, NOZZLE_Y + 20, 10, 20);
+        // draw drain pipe
+        g2.setPaint(new GradientPaint(centerX - DRAIN_WIDTH/2, 0, Color.DARK_GRAY, centerX + DRAIN_WIDTH/2, 0, Color.BLACK));
+        g2.fillRect(centerX - DRAIN_WIDTH/2, SINK_TOP + SINK_HEIGHT - 10, DRAIN_WIDTH, 50);
 
-        // Glass outline
+        // sink
+        int sinkWidth = CUP_WIDTH + 160;
+        int sinkLeft = centerX - (sinkWidth / 2);
+        g2.setColor(new Color(40, 40, 45));
+        g2.fill(new RoundRectangle2D.Double(sinkLeft, SINK_TOP, sinkWidth, SINK_HEIGHT, 20, 20));
+
+        // Sink inner shadow
+        g2.setColor(new Color(15, 15, 15));
+        g2.draw(new RoundRectangle2D.Double(sinkLeft, SINK_TOP, sinkWidth, SINK_HEIGHT, 20, 20));
+
+        // sink water
+        if (sinkLevel > 0) {
+            double pct = sinkLevel / SINK_MAX_LEVEL;
+            int waterHeight = (int) ((SINK_HEIGHT - 10) * pct);
+            g2.setColor(new Color(30, 144, 255, 150));
+            g2.fill(new RoundRectangle2D.Double(sinkLeft + 5, SINK_TOP + SINK_HEIGHT - 5 - waterHeight, sinkWidth - 10, waterHeight, 15, 15));
+
+            // Flow into drain visual
+            g2.fillRect(centerX - DRAIN_WIDTH/4, SINK_TOP + SINK_HEIGHT - 5, DRAIN_WIDTH/2, 10);
+        }
+
+        // glass liquid
+        if (!glass.isEmpty() && !glassVanished) {
+            int unitHeight = CUP_HEIGHT / glass.getCapacity();
+            int lHeight = glass.getLevel() * unitHeight;
+            Color c = (visualLiquidType == Glass.Liquid.WATER) ? new Color(0, 150, 255) :
+                    (visualLiquidType == Glass.Liquid.MILK) ? Color.WHITE : new Color(101, 67, 33);
+            g2.setPaint(new GradientPaint(cupLeft, CUP_TOP, c, cupLeft + CUP_WIDTH, CUP_TOP, c.darker()));
+            g2.fill(new RoundRectangle2D.Double(cupLeft + 3, CUP_TOP + CUP_HEIGHT - lHeight, CUP_WIDTH - 6, lHeight - 3, 5, 5));
+        }
+
+        // glass outline
         if (!glassVanished) {
-            g2.setColor(Color.BLACK);
-            g2.drawRect(CUP_LEFT, CUP_TOP, CUP_WIDTH, CUP_HEIGHT);
+            g2.setStroke(new BasicStroke(2.0f));
+            g2.setColor(new Color(255, 255, 255, 70));
+            g2.draw(new RoundRectangle2D.Double(cupLeft, CUP_TOP, CUP_WIDTH, CUP_HEIGHT, 10, 10));
         }
 
-        // Liquid inside
-        if (!glass.isEmpty()) {
-            Color liquidColor = visualLiquidType == Glass.Liquid.WATER ? Color.BLUE
-                    : visualLiquidType == Glass.Liquid.MILK ? Color.WHITE
-                    : visualLiquidType == Glass.Liquid.MILO ? new Color(139,69,19)
-                    : Color.LIGHT_GRAY;
-            g2.setColor(liquidColor);
-            g2.fillRect(CUP_LEFT + 1, CUP_TOP + CUP_HEIGHT - liquidHeight, CUP_WIDTH - 1, liquidHeight);
-        }
+        // faucet
+        g2.setPaint(new GradientPaint(centerX - 30, 0, Color.LIGHT_GRAY, centerX + 30, 0, Color.DARK_GRAY));
+        g2.fill(new RoundRectangle2D.Double(centerX - 30, 15, 60, 25, 10, 10)); // Body
+        g2.fill(new Rectangle2D.Double(centerX - 10, 40, 20, 15)); // Spout
 
-        // Sink: only filled when overflowing, with margin
-        int sinkMargin = 5;
-        if (overflowed) {
-            Color sinkColor = (sinkLiquidType == Glass.Liquid.WATER ? Color.BLUE
-                    : sinkLiquidType == Glass.Liquid.MILK ? Color.WHITE
-                    : sinkLiquidType == Glass.Liquid.MILO ? new Color(139,69,19)
-                    : Color.LIGHT_GRAY);
-            g2.setColor(sinkColor);
-            g2.fillRect(CUP_LEFT - 20, SINK_TOP + sinkMargin, CUP_WIDTH + 40, SINK_HEIGHT - 2 * sinkMargin);
-        } else {
-            g2.setColor(Color.DARK_GRAY);
-            g2.fillRect(CUP_LEFT - 20, SINK_TOP, CUP_WIDTH + 40, SINK_HEIGHT);
-        }
-        g2.setColor(Color.BLACK); // always keep border
-        g2.drawRect(CUP_LEFT - 20, SINK_TOP, CUP_WIDTH + 40, SINK_HEIGHT);
-
-        // Drops
+        // particles
         for (Drop d : drops) {
-            g2.setColor(Color.BLUE);
-            g2.fillOval(d.x, d.y, 8, 8);
+            g2.setColor(new Color(135, 206, 250));
+            g2.fillOval(d.x, d.y, 8, 12);
         }
-
-        // Particles
         for (Particle p : particles) {
-            g2.setColor(p.type == Glass.Liquid.MILK ? Color.WHITE : new Color(139,69,19));
-            g2.fillOval(p.x, p.y, 3, 3);
+            g2.setColor(p.type == Glass.Liquid.MILK ? Color.WHITE : new Color(139, 69, 19));
+            g2.fillOval(p.x, p.y, 4, 4);
         }
 
-        // Stirring
+        // stirrer
         if (stirring) {
             AffineTransform old = g2.getTransform();
-            g2.setColor(Color.ORANGE);
-            g2.rotate(Math.toRadians(stirAngle), CUP_LEFT + CUP_WIDTH/2, CUP_TOP + CUP_HEIGHT/2);
-            g2.fillRect(CUP_LEFT + CUP_WIDTH/2 - 2, CUP_TOP + CUP_HEIGHT/2 - 30, 4, 60);
+            g2.rotate(Math.toRadians(stirAngle), centerX, CUP_TOP + CUP_HEIGHT / 2);
+            g2.setColor(new Color(210, 180, 140));
+            g2.fill(new RoundRectangle2D.Double(centerX - 3, CUP_TOP - 10, 6, 110, 5, 5));
             g2.setTransform(old);
         }
     }
 
-    // --- Inner classes ---
-    private static class Drop {
-        int x, y;
-        double speed;
-        Drop(int x, int y, double s) { this.x = x; this.y = y; this.speed = s; }
-    }
-
-    private static class Particle {
-        int x, y;
-        double speed;
-        Glass.Liquid type;
-        Particle(int x, int y, Glass.Liquid t, double s) { this.x = x; this.y = y; this.type = t; this.speed = s; }
-    }
-
-    private static class Packet {
-        int x, y;
-        Glass.Liquid type;
-        int totalParticles, generatedParticles = 0;
-        Packet(int x, int y, Glass.Liquid t, int total) { this.x = x; this.y = y; this.type = t; this.totalParticles = total; }
-    }
+    private static class Drop { int x, y; double speed; Drop(int x, int y, double s) { this.x = x; this.y = y; this.speed = s; } }
+    private static class Particle { int x, y; double speed; Glass.Liquid type; Particle(int x, int y, Glass.Liquid t, double s) { this.x = x; this.y = y; this.type = t; this.speed = s; } }
+    private static class Packet { int x, y; Glass.Liquid type; int totalParticles, generatedParticles = 0; Packet(int x, int y, Glass.Liquid t, int total) { this.x = x; this.y = y; this.type = t; this.totalParticles = total; } }
 }
