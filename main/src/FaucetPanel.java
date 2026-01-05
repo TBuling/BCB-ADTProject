@@ -35,7 +35,7 @@ public class FaucetPanel extends JPanel {
         drawGlass(g);
         drawSink(g);
         drawLiquid(g);
-        drawPacket(g);
+        drawLevelLabels(g);
         drawSpoon(g);
     }
 
@@ -62,85 +62,107 @@ public class FaucetPanel extends JPanel {
         if (!glass.isEmpty()) {
             int unitHeight = CUP_HEIGHT / glass.getCapacity();
             int liquidHeight = glass.getLevel() * unitHeight;
+
             Color color = switch (glass.getCurrentLiquid()) {
                 case WATER -> Color.CYAN;
                 case MILK -> Color.WHITE;
-                case MILO -> new Color(139, 69, 19); // brown
+                case MILO -> new Color(94, 43, 5);
             };
+
             g.setColor(color);
-            g.fillRect(CUP_LEFT + 1, CUP_TOP + CUP_HEIGHT - liquidHeight, CUP_WIDTH - 1, liquidHeight);
+            g.fillRect(
+                    CUP_LEFT + 1,
+                    CUP_TOP + CUP_HEIGHT - liquidHeight,
+                    CUP_WIDTH - 1,
+                    liquidHeight
+            );
         }
 
-        // Draw falling drop
+        // Falling drop (color depends on liquid)
         if (dropY >= 0) {
-            g.setColor(Color.BLUE);
+            Color dropColor = switch (lastLiquid) {
+                case WATER -> Color.BLUE;
+                case MILK -> Color.WHITE;
+                case MILO -> new Color(94, 43, 5);
+            };
+            g.setColor(dropColor);
             g.fillOval(NOZZLE_X, dropY, 8, 8);
         }
 
-        // If glass is full and more liquid added, show spill in sink
+        // Overflow spill
         if (glass.isFull() && dropY >= CUP_TOP + CUP_HEIGHT - 10) {
             g.setColor(Color.BLUE);
             g.fillRect(CUP_LEFT, SINK_TOP + 5, CUP_WIDTH, SINK_HEIGHT - 10);
         }
     }
 
-    private void drawPacket(Graphics g) {
-        if (!showPacket) return;
-        int packetXOffset = lastLiquid == Glass.Liquid.MILK ? -15 : 15; // offset from faucet
-        g.setColor(lastLiquid == Glass.Liquid.MILK ? Color.WHITE : new Color(139, 69, 19));
-        g.fillRect(NOZZLE_X + packetXOffset, dropY, 20, 20);
+    private void drawLevelLabels(Graphics g) {
         g.setColor(Color.BLACK);
-        g.drawString(lastLiquid == Glass.Liquid.MILK ? "Milk" : "Milo", NOZZLE_X + packetXOffset, dropY + 15);
+        int unitHeight = CUP_HEIGHT / glass.getCapacity();
+
+        for (int i = 1; i <= glass.getCapacity(); i++) {
+            int y = CUP_TOP + CUP_HEIGHT - (i * unitHeight);
+            g.drawLine(CUP_LEFT + CUP_WIDTH + 5, y, CUP_LEFT + CUP_WIDTH + 15, y);
+            g.drawString((i * 100) + " mL", CUP_LEFT + CUP_WIDTH + 20, y + 5);
+        }
     }
 
     private void drawSpoon(Graphics g) {
         if (!showSpoon) return;
+
         g.setColor(Color.GRAY);
-        g.fillRect(CUP_LEFT + CUP_WIDTH / 2 - 3, CUP_TOP + CUP_HEIGHT - 40, 6, 40); // handle
-        g.fillOval(CUP_LEFT + CUP_WIDTH / 2 - 10, CUP_TOP + CUP_HEIGHT - 50, 20, 10); // spoon head
+        g.fillRect(
+                CUP_LEFT + CUP_WIDTH / 2 - 3,
+                CUP_TOP + CUP_HEIGHT - 40,
+                6,
+                40
+        );
+        g.fillOval(
+                CUP_LEFT + CUP_WIDTH / 2 - 10,
+                CUP_TOP + CUP_HEIGHT - 50,
+                20,
+                10
+        );
     }
 
     // ===== ANIMATIONS =====
     public void addLiquid(Glass.Liquid liquid) {
+        if (glass.isFull()){
+            JOptionPane.showMessageDialog(
+                    this,
+                    "The glass is already full.",
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }   // 🚫 stop if full
+
         new Thread(() -> {
             try {
-                dropY = NOZZLE_Y;
                 lastLiquid = liquid;
-                showPacket = liquid != Glass.Liquid.WATER;
                 showSpoon = false;
                 isSplash = false;
 
-                while (dropY < CUP_TOP + CUP_HEIGHT - 10) {
+                dropY = NOZZLE_Y;
+                int impactY = CUP_TOP + CUP_HEIGHT - 10;
+
+                while (dropY < impactY) {
                     repaint();
                     dropY += 5;
                     Thread.sleep(50);
                 }
 
-                // Check if glass is full
+                dropY = impactY;
+                repaint();
+
                 if (!glass.isFull()) {
                     glass.addUnit(liquid);
-                    isSplash = true;
-                } else {
-                    // overflow
-                    isSplash = true;
                 }
 
-                repaint();
                 Thread.sleep(200);
 
-                if (showPacket) {
-                    showSpoon = true;
-                    for (int i = 0; i < 6; i++) {
-                        repaint();
-                        Thread.sleep(200);
-                    }
-                }
-
-                // Reset visuals
                 dropY = -1;
-                showPacket = false;
                 showSpoon = false;
-                isSplash = false;
                 repaint();
 
             } catch (InterruptedException e) {
@@ -148,6 +170,7 @@ public class FaucetPanel extends JPanel {
             }
         }).start();
     }
+
 
     public void drinkGlass() {
         if (!glass.isEmpty()) {
