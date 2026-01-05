@@ -1,63 +1,31 @@
 public class Glass {
-
-    public enum Liquid {
-        WATER, MILK, MILO
-    }
-
-    private int level;
+    enum Liquid { WATER, MILK, MILO }
     private final int capacity;
-    private Liquid currentLiquid;
+    private int level = 0;
+    private Liquid current = null;
 
-    public Glass(int capacity) {
-        this.capacity = capacity;
-        this.level = 0;
-        this.currentLiquid = null;
+    public Glass(int capacity) { this.capacity = capacity; }
+
+    public int getCapacity() { return capacity; }
+    public int getLevel() { return level; }
+    public boolean isEmpty() { return level == 0; }
+    public boolean isFull() { return level >= capacity; }
+    public Liquid getCurrentLiquid() { return current; }
+
+    public boolean addUnit(Liquid type) {
+        if (isFull()) return false;
+        level++;
+        current = type;
+        return true;
     }
 
-    public boolean addUnit(Liquid liquid) {
-        if (!isFull()) {
-            level++;
-            currentLiquid = liquid;
-            return true;
-        }
-        return false;
+    public void removeUnit() {
+        if (!isEmpty()) level--;
+        if (isEmpty()) current = null;
     }
 
-    public boolean drinkAll() {
-        if (!isEmpty()) {
-            level = 0;
-            currentLiquid = null;
-            return true;
-        }
-        return false;
-    }
-
-    public boolean removeUnit() {
-        if (!isEmpty()) {
-            level--;
-            if (level == 0) currentLiquid = null;
-            return true;
-        }
-        return false;
-    }
-
-    public int getLevel() {
-        return level;
-    }
-
-    public int getCapacity() {
-        return capacity;
-    }
-
-    public boolean isFull() {
-        return level >= capacity;
-    }
-
-    public boolean isEmpty() {
-        return level <= 0;
-    }
-
-    public Liquid getCurrentLiquid() {
-        return currentLiquid;
+    public void drinkAll() {
+        level = 0;
+        current = null;
     }
 }
