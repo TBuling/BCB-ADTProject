@@ -29,7 +29,7 @@ public class FaucetPanel extends JPanel {
 
     private boolean overflowed = false;
 
-    // sink n drain
+    // sink n drain.
     private double sinkLevel = 0; // Changed to double for smoother draining
     private final int SINK_MAX_LEVEL = 200;
     private final int SINK_FILL_RATE = 5;
