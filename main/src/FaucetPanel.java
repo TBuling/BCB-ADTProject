@@ -29,7 +29,7 @@ public class FaucetPanel extends JPanel {
 
     private boolean overflowed = false;
 
-    // sink n drain.
+    // sink n drain
     private double sinkLevel = 0; // Changed to double for smoother draining
     private final int SINK_MAX_LEVEL = 200;
     private final int SINK_FILL_RATE = 5;
@@ -47,6 +47,11 @@ public class FaucetPanel extends JPanel {
     private final int DRAIN_WIDTH = 25; // Size of the drain pipe
     private final int NOZZLE_Y = 60;
 
+    // warnings
+    private String warningMessage = "";
+    private int warningTicks = 0;
+    private final int WARNING_DURATION = 100;
+
     private final Timer timer;
 
     public FaucetPanel(Glass glass) {
@@ -56,7 +61,7 @@ public class FaucetPanel extends JPanel {
         timer = new Timer(25, e -> {
             updateDrops();
             updateParticlesAndStir();
-            updateDrainage(); // New logic
+            updateDrainage();
             repaint();
         });
         timer.start();
@@ -154,7 +159,14 @@ public class FaucetPanel extends JPanel {
     }
 
     public boolean addPowder(Glass.Liquid type) {
-        if (faucetOpen || milkMiloAdded) return false;
+        if (faucetOpen) {
+            setWarning("Can't add powder while faucet is running!");
+            return false;
+        }
+        if (milkMiloAdded) {
+            setWarning("Powder already added!");
+            return false;
+        }
         packet = new Packet(getWidth() / 2, NOZZLE_Y, type, 60);
         return true;
     }
@@ -163,10 +175,17 @@ public class FaucetPanel extends JPanel {
         if (!glass.isEmpty()) {
             glass.removeUnit();
             overflowed = false;
+        } else {
+            setWarning("Glass is empty!");
         }
     }
 
     public void drinkGlass() {
+        if (glass.isEmpty()) {
+            setWarning("Nothing to drink!");
+            return;
+        }
+
         glass.drinkAll();
         drops.clear();
         particles.clear();
@@ -175,12 +194,17 @@ public class FaucetPanel extends JPanel {
         milkMiloAdded = false;
         visualLiquidType = Glass.Liquid.WATER;
         overflowed = false;
-        sinkLevel = 0;
 
         glassVanished = true;
         Timer t = new Timer(250, e -> glassVanished = false);
         t.setRepeats(false);
         t.start();
+        // Sink untouched; drainage logic handles it
+    }
+
+    private void setWarning(String msg) {
+        warningMessage = msg;
+        warningTicks = WARNING_DURATION;
     }
 
     public boolean isStirring() { return stirring; }
@@ -259,6 +283,24 @@ public class FaucetPanel extends JPanel {
             g2.setColor(new Color(210, 180, 140));
             g2.fill(new RoundRectangle2D.Double(centerX - 3, CUP_TOP - 10, 6, 110, 5, 5));
             g2.setTransform(old);
+        }
+
+        // warning overlay
+        if (warningTicks > 0 && !warningMessage.isEmpty()) {
+            g2.setFont(new Font("Arial", Font.BOLD, 16));
+            g2.setColor(new Color(255, 50, 50, 200));
+            int strWidth = g2.getFontMetrics().stringWidth(warningMessage);
+            g2.drawString(warningMessage, getWidth()/2 - strWidth/2, 40);
+            warningTicks--;
+        }
+
+        // overflow warning
+        if (overflowed) {
+            String overflowMsg = "Overflow! Liquid spilled into sink!";
+            g2.setFont(new Font("Arial", Font.BOLD, 14));
+            g2.setColor(new Color(255, 140, 0, 200));
+            int strWidth = g2.getFontMetrics().stringWidth(overflowMsg);
+            g2.drawString(overflowMsg, getWidth()/2 - strWidth/2, CUP_TOP + CUP_HEIGHT + 20);
         }
     }
 
